@@ -1,6 +1,41 @@
 import nltk
 import re
 
+#Funções de uso geral
+def limpeza(requisitos):
+    tokens = []
+    for indice,req in enumerate(requisitos):
+        req= re.sub("[!'@*>=+#%:&;™.,_\\/()?\"]+", ' ', req)
+        req= re.sub('[0-9]+', ' ', req)
+        req= re.sub('- | -|-+', ' ', req)
+        req= re.sub(r'(?:^| \\ )\w(?:$| )', ' ', req).strip()
+        words = nltk.word_tokenize(req.lower())
+        words = words[1:]
+        tokens.append(words)
+        newwords = []
+        for word in words:
+            if word in nltk.corpus.stopwords.words('english'):
+                continue
+            try:
+                newwords.append(word)
+            except:
+                continue
+        requisitos[indice] = ' '.join(newwords)
+    return tokens,requisitos
+
+def trigram_pos(requisitos):
+    from pickle import load
+    entrada = open('trigram.pkl','rb')
+    tagger = load(entrada)
+    entrada.close()
+    
+    saida=[tagger.tag(requisito) for requisito in requisitos]
+    
+    return saida
+
+###################################################################################
+
+
 class AnaliseSintatica:
     def __init__(self, requisitos, tagger,passive_voice):
         self.tagger=tagger
@@ -88,26 +123,6 @@ class AnaliseSintatica:
         self.analise_completa()
         return self.analise_sintatica
 
-def limpeza(requisitos):
-    tokens = []
-    for indice,req in enumerate(requisitos):
-        req= re.sub("[!'@*>=+#%:&;™.,_\\/()?\"]+", ' ', req)
-        req= re.sub('[0-9]+', ' ', req)
-        req= re.sub('- | -|-+', ' ', req)
-        req= re.sub(r'(?:^| \\ )\w(?:$| )', ' ', req).strip()
-        words = nltk.word_tokenize(req.lower())
-        words = words[1:]
-        tokens.append(words)
-        newwords = []
-        for word in words:
-            if word in nltk.corpus.stopwords.words('english'):
-                continue
-            try:
-                newwords.append(word)
-            except:
-                continue
-        requisitos[indice] = ' '.join(newwords)
-    return tokens,requisitos
 
 
 class ambiguidade_lexica:
@@ -155,9 +170,184 @@ class ambiguidade_lexica:
         self.algoritmo_flex_amb()
         return self.ambiguos_lexicos
 
-class Ambiguidade_sintatica
-    
 
+class Contextualizacao:
+    def __init__(self, requisitos,nome_arquivo_ontologia):
+        self.requisitos=requisitos
+        self.arquivo=nome_arquivo_ontologia
+        self.dicionario_palavras_smart={}
+        self.contextualizados = {"Contextualizados":[], "SensoresIncompletos":[],"AtuadoresIncompletos":[]}
+        self.sensores=[]
+    def tratamento_ontologia(self):
+        arquivo = open(self.arquivo,'r')
+        arq = ''
+        for i in arquivo:
+            arq+=i
+        arquivo.close()
+        palavras_smart=arq.split('\n')
+
+        for palavra in palavras_smart:
+            chave,valor=palavra.split(',')
+            self.dicionario_palavras_smart[chave]=int(valor)
+    def sensores(self):
+        arquivo = open("sensores.txt",'r')
+        arq = ''
+        for i in arquivo:
+            arq+=i
+        arquivo.close()
+        self.sensores=arq.split('\n')
+    def OR(self,array1,array2):
+        aux=[]
+        for i in range(len(array1)):
+            aux.append(array1[i] or array2[i])
+        return aux 
+
+    def contextualizacao(self):
+        from sklearn.feature_extraction.text import TfidfVectorizer,CountVectorizer
+        import pandas as pd
+        import numpy as np
+        from sklearn.cluster import KMeans
+        requisitos=limpeza(self.requisitos)[1]
+        self.tratamento_ontologia()
+        tfidfvectorizer = TfidfVectorizer(analyzer='word', stop_words='english')
+
+        tfidf_wm = tfidfvectorizer.fit_transform(requisitos)
+        tfidf_tokens = tfidfvectorizer.get_feature_names_out()
+        palavras = list(tfidfvectorizer.get_feature_names_out())
+        df_tfidfvect = pd.DataFrame(data=tfidf_wm.toarray(), columns=palavras)
+
+        n = 2
+        kmeans = KMeans(n_clusters=n, random_state=0,n_init=10)
+
+        df = df_tfidfvect
+        kmeans.fit(df)
+        palavras_smart=list(self.dicionario_palavras_smart.keys())
+        labels = kmeans.labels_
+
+        classe_0 = [not bool(x) for x in labels]
+        classe_1 = [bool(x) for x in labels]
+
+        classe_0 = df[classe_0]
+        classe_1 = df[classe_1]
+
+        
+        
+        indices_0 = list(classe_0.mean() == 0)
+        indices_0 = list(classe_0.mean()[indices_0].index)
+        indices_1 = list(classe_1.mean() == 0)
+        indices_1 = list(classe_1.mean()[indices_1].index)
+
+        classe_1 = classe_1.drop(columns=indices_1)
+        classe_0 = classe_0.drop(columns=indices_0)
+
+        palavras_0 = list(classe_0.columns)
+        palavras_1 = list(classe_1.columns)
+        
+        palavras_check_0 = []
+        for i in range(len(palavras_0)):
+            for palavra in palavras_smart:
+                if palavras_0[i] in palavra:
+                    if palavras_0[i] not in palavras_check_0:
+                        palavras_check_0.append(palavras_0[i])
+        palavras_check_1 = []
+        for i in range(len(palavras_1)):
+            for palavra in palavras_smart:
+                if palavras_1[i] in palavra:
+                    if palavras_1[i] not in palavras_check_1:
+                        palavras_check_1.append(palavras_1[i])
+        
+        media_0 = classe_0.mean()[palavras_check_0]
+        media_1 = classe_1.mean()[palavras_check_1]
+        
+
+        
+        score_0 = media_0.sum()
+        score_1 = media_1.sum()
+
+        
+        if score_0 > score_1:
+            classe=0
+            qtde_palavras=len(palavras_0)
+        else:
+            classe=1
+            qtde_palavras = len(palavras_1)
+
+        if classe==1:
+            pass
+        else:
+            aux=[]
+            '''print('labels sem mexer: ',list(labels))'''
+            for i in list(labels):
+                if i==0:
+                    i=1
+                elif i==1:
+                    i=0
+                aux.append(i)
+            labels=aux
+        
+        vetor=[0 for i in range(len(palavras))]
+        for chave,valor in self.dicionario_palavras_smart.items():
+            if len(chave.split(' '))==1:
+                if chave in palavras:
+                    indice=palavras.index(chave)
+                    vetor[indice]=valor
+            else:
+                aux=0
+                for mini_chave in chave.split(' '):
+                    if mini_chave in palavras:
+                        aux+=1
+                if aux==len(chave.split(' ')):
+                    for mini_chave in chave.split(' '):
+                        indice=palavras.index(mini_chave)
+                        vetor[indice]=valor
+        df_pesos=pd.DataFrame(vetor,index=palavras)
+        vetor_pesos=np.array(vetor)
+
+        array_score=[]
+        for indice in range(len(self.requisitos)):
+            linha=df_tfidfvect.iloc[indice]
+            array_linha=np.array(linha)
+            array_score.append(np.dot(vetor_pesos,array_linha))
+        media_score=sum(array_score)/len(array_score)
+
+        resultado=[]
+        for i in array_score:
+            if i>=media_score:
+                resultado.append(1)
+            else:
+                resultado.append(0)
+        
+
+        array_or=self.OR(labels,resultado)
+        self.contextualizados["Contextualizados"]=[indice for indice,valor in enumerate(array_or) if valor==1]
+    
+    def completude(self):
+        tokens, requisitos=limpeza(self.requisitos)
+        pos = trigram_pos(requisitos)
+        
+        
+        for indice in self.contextualizados["Contextualizados"]:
+            palavras=tokens[indice]
+            
+            for i,palavra in enumerate(palavras):
+                # 1 - Sensor sem definição do sensor
+                if(palavra=="sensor" or palavra=="sensors"):
+                    if not ((palavras[i - 1] in self.sensores)):
+                        if indice not in self.contextualizados["SensoresIncompletos"]:
+                            self.contextualizados["SensoresIncompletos"].append(indice)
+
+                        
+                        
+                # 2 - Atuadores sem definição
+                if (palavra == "actuator" or palavra == "actuators"):
+                    if not ((pos[indice][i+1][1]=='RB') or (pos[indice][i+1][1][0]=='V')):
+                        if indice not in self.contextualizados["AtuadoresIncompletos"]:
+                            self.contextualizados["AtuadoresIncompletos"].append(indice)
+    
+    def analise_contextualizacao(self):
+        self.contextualizacao()
+        self.completude()
+        return self.contextualizados
 
 arquivo = open('requisitos.txt','r')
 texto = ''
@@ -166,30 +356,7 @@ for linhas in arquivo:
 arquivo.close()
 requisitos = texto.split('\n')
 
-arquivo = open('dicionario_base.txt','r')
-texto = ''
-for linhas in arquivo:
-    texto+=linhas
-arquivo.close()
-palavras_ambiguas = texto.split('\n')
+analise = Contextualizacao(requisitos,"m3-ontology.txt").analise_contextualizacao()
+print(analise)
 
-
-
-def trigram_pos(requisitos):
-    from pickle import load
-    entrada = open('trigram.pkl','rb')
-    tagger = load(entrada)
-    entrada.close()
-    
-    saida=[tagger.tag(requisito) for requisito in requisitos]
-    
-    return saida
-
-
-tokens,requisitos=limpeza(requisitos)
-pos = trigram_pos(tokens)
-
-ambiguidadelexica = ambiguidade_lexica(requisitos,palavras_ambiguas,pos).requisitos_ambiguos()
-print(ambiguidadelexica)
-            
-        
+                        
