@@ -29,7 +29,7 @@ def trigram_pos(requisitos):
     tagger = load(entrada)
     entrada.close()
     
-    saida=[tagger.tag(requisito) for requisito in requisitos]
+    saida=[tagger.tag(nltk.word_tokenize(requisito)) for requisito in requisitos]
     
     return saida
 
@@ -169,6 +169,109 @@ class ambiguidade_lexica:
         self.palavras_ambiguas()
         self.algoritmo_flex_amb()
         return self.ambiguos_lexicos
+
+
+class ambiguidade_sintatica:
+    def __init__(self, requisitos, POS):
+        self.requisitos=requisitos
+        self.POS=POS
+        self.ambiguidade=[]
+    def texto(self, tags):
+        retorno = []
+        for tag in tags:
+            retorno.append(tag[0])
+        return ' '.join(retorno)
+    def obter_ambiguidade(self, tree,tipo):
+        largura=len(tree)
+        ocorrencia=[]
+        for i in range(largura):
+            if (type(tree[i]) is nltk.Tree) and (tree[i].label()==tipo):
+                nos=[]
+                for k in range(len(tree[i])):
+                    if (type(tree[i][k]) is nltk.Tree): 
+
+                        nos.append((tree[i][k].label(),self.texto(tree[i][k].leaves())))
+                ocorrencia.append((self.texto(tree[i].leaves()),nos))
+        return ocorrencia
+    
+    def analitical_ambiguity(self,pos):
+        Analitical = nltk.RegexpParser("""
+                                AP: {<AB.*>?<AdvP>?<QL>?<JJ.*>?}              #Para extrair Adjective Phrases
+                                NP: {<PP.*>?<CS>?<DT>?<AT>?<NN.*>|<PPS.*>|<NP>}    #Para extrair Noun Phrases
+                                Analitical: {<AP><NP><NP>}                    #Definição de Analitical Ambiguity
+                                """)
+        sintaxe_tree = Analitical.parse(pos)
+        ambiguidades = self.obter_ambiguidade(sintaxe_tree,"Analitical")
+        retorno=[]
+        if len(ambiguidades)==0:
+            return False,retorno
+        else:
+            
+            for ambiguo in ambiguidades:
+
+                solucao_1 = f'{ambiguo[1][2][1]} of {ambiguo[1][0][1]} {ambiguo[1][1][1]}'
+                solucao_2 = f'{ambiguo[1][0][1]} {ambiguo[1][2][1]} of {ambiguo[1][1][1]}'
+
+                texto_retorno = f"O texto '{ambiguo[0]}' tem Analitical Ambiguity e tem as possíveis leituras '{solucao_1}' e '{solucao_2}'."
+                retorno.append(texto_retorno)
+            return True,retorno
+    def coordination_ambiguity(self, pos):
+        Coordination = nltk.RegexpParser("""
+                            AP: {<AB.*>?<QL>?<JJ.*>?}                     #Para extrair Adjective
+                            NP: {<PP.*>?<CS>?<DT>?<AT>?<NN.*>|<PPS.*>|<NP>}    #Para extrair Noun Phrases
+                            Coordination: {<AP><NP><CC><NP>}              #Definição de Coordination Ambiguity
+                            """)
+
+        sintaxe_tree = Coordination.parse(pos)
+        ambiguidades = self.obter_ambiguidade(sintaxe_tree,"Coordination")
+        retorno=[]
+        if len(ambiguidades)==0:
+            return False, retorno
+        else:
+            
+            for ambiguo in ambiguidades:
+                solucao = f'{ambiguo[1][0][1]} {ambiguo[1][1][1]}, {ambiguo[1][0][1]} {ambiguo[1][2][1]}'
+
+                texto_retorno=f"O texto '{ambiguo[0]}' pode ser lido da maneira que está, ou da seguinte forma: {solucao}"
+                retorno.append(texto_retorno)
+            return True, retorno
+    
+    def attachment_ambiguity(self, pos):
+        Attachment = nltk.RegexpParser("""
+                            NP: {<PP.*>?<CS>?<DT>?<AT>?<AP>?<NN.*>|<PPS.*>|<NP>}    #Para extrair Noun Phrases
+                            P: {<IN.*>|<TO>}                                   #Para extrair preposições
+                            V: {<VB.*>|<DO.*>|<HV.*>}                          #Para extrair os verbos
+                            Attachment: {<V><NP><P><NP>}                       #Definição de Attachment Ambiguity
+                            """)
+        sintaxe_tree = Attachment.parse(pos)
+        ambiguidades = self.obter_ambiguidade(sintaxe_tree,"Attachment")
+        retorno=[]
+        if len(ambiguidades)==0:
+            return False,retorno
+        else:
+
+            for ambiguo in ambiguidades:
+                consulta_1 = ambiguo[1][1][1]+' '+ambiguo[1][2][1]+' '+ambiguo[1][3][1]
+                consulta_2 = ambiguo[1][0][1]+' '+ambiguo[1][2][1]+' '+ambiguo[1][3][1]
+                consultas=[consulta_1,consulta_2]
+                solucao_1 = consulta_1
+                solucao_2 = consulta_2
+                texto_retorno=f"O texto '{ambiguo[0]}' tem Coordination Ambiguity, tem as duas leituras possíveis: '{solucao_1}' e '{solucao_2}'."
+                retorno.append(texto_retorno)
+            return True, retorno
+    
+    def retorna_ambiguidade(self):
+        retorno={'Analitical':{},'Coordination':{},'Attachment':{}}
+        for indice,requisito in enumerate(self.POS):
+            if(self.analitical_ambiguity(requisito)[0]):
+                retorno['Analitical'][indice]= self.analitical_ambiguity(requisito)[1]
+            if(self.coordination_ambiguity(requisito)[0]):
+                retorno['Coordination'][indice]= self.coordination_ambiguity(requisito)[1]
+            if(self.attachment_ambiguity(requisito)[0]):
+                retorno['Attachment'][indice]= self.attachment_ambiguity(requisito)[1]
+        return retorno
+    
+
 
 
 class Contextualizacao:
@@ -349,14 +452,4 @@ class Contextualizacao:
         self.completude()
         return self.contextualizados
 
-arquivo = open('requisitos.txt','r')
-texto = ''
-for linhas in arquivo:
-    texto+=linhas
-arquivo.close()
-requisitos = texto.split('\n')
-
-analise = Contextualizacao(requisitos,"m3-ontology.txt").analise_contextualizacao()
-print(analise)
-
-                        
+           
