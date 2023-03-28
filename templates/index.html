@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{{url_for('static',filename='css/estilo.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/home.css')}}">
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/app.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/footer.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/main.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/nav.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/header.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/botoes.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/aboutus.css')}}">
+
+</head>
+<body>
+    <div class="app">
+        <header class="header d-none d-sm-flex flex-column">
+            <h1 class="lead text-muted">ReqSCity: An Application Requirement Analysis Tool for Smart Cities</h1>
+        </header>
+        <aside class="menu-area">
+            <nav class="menu">
+                <form action="/" method="GET">
+                    <button class="botao "><i class="fa fa-home"></i> Início</button>
+                </form>
+                <form action="/instrucoes" method="GET">
+                    <button class="botao"><i class="fa fa-book"></i> Instruções</button>
+                </form>
+                <!--
+                <form action="/aboutus" method="GET">
+                    <button class="botao"><i class="fa fa-user-circle-o"></i> Sobre Nós</button>
+                </form>
+                -->
+            </nav>
+        </aside>
+
+        {%block conteudo%}
+        {%endblock%}
+
+    </div>
+</body>
+</html>

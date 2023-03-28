@@ -119,7 +119,6 @@ class AnaliseSintatica:
                 self.analise_sintatica[erro].append(indice)
 
     def analise(self):
-        print("Cheguei")
         self.analise_completa()
         return self.analise_sintatica
 
@@ -137,7 +136,7 @@ class ambiguidade_lexica:
         for indice,req in enumerate(self.requisitos):
             self.tokens.append(nltk.word_tokenize(req))
             for ambigua in self.palavras_amb:
-                if ambigua.lower() in tokens:
+                if ambigua.lower() in self.tokens:
                     self.ambiguos_lexicos["PA"].append(indice)
 
     def objetoWN(self,pos):
@@ -452,4 +451,4 @@ class Contextualizacao:
         self.completude()
         return self.contextualizados
 
-           
+
