@@ -30,8 +30,6 @@ def caminho(escolha, requisitos):
     entrada.close()
     
     if escolha == 1:
-
-        
         arquivo = open('passivevoice.txt','r')
         texto = ''
         for linhas in arquivo:
@@ -63,12 +61,9 @@ def caminho(escolha, requisitos):
             texto+=linhas
         arquivo.close()
         palavra_amb = texto.split('\n')
-        
         pos = cl.trigram_pos(cl.limpeza(requisitos)[1])
-        
         amb_lexical = cl.ambiguidade_lexica(requisitos,palavra_amb,pos).requisitos_ambiguos()
         amb_sintatica = cl.ambiguidade_sintatica(requisitos,cl.trigram_pos(requisitos)).retorna_ambiguidade()
-        
         PA = amb_lexical['PA']
         AFL = amb_lexical['AFL']
         Analitical = list(amb_sintatica['Analitical'].keys())
@@ -105,16 +100,78 @@ def caminho(escolha, requisitos):
                 Data.append((i + 1, aux))
             else:
                 continue
+    elif escolha ==4:
+        import copy
+        Data = {'Analise_Sintatica':[],'Ambiguidade':[],'Bons':[],'Contextualizados':[]}
+        Bons = {'Analise_Sintatica':[],'Ambiguidade':[]}
+        
+        arquivo = open('passivevoice.txt','r')
+        texto = ''
+        for linhas in arquivo:
+            texto+=linhas
+        arquivo.close()
+        passive_voice = texto.split('\n')
+        analise_sintatica = cl.AnaliseSintatica(copy.deepcopy(requisitos),tagger,passive_voice).analise()
+        PV = analise_sintatica['PV']
+        MS = analise_sintatica['MS']
+        MVM = analise_sintatica['MVM']
+        DS = analise_sintatica['PV']
+
+        for indice in range(len(requisitos)):
+            aux = []
+            aux.append(indice in MVM)
+            aux.append(indice in PV)
+            aux.append(indice in MS)
+            aux.append(indice in DS)
+            if True in aux:
+                Data['Analise_Sintatica'].append((indice + 1, aux))
+            else:
+                Bons['Analise_Sintatica'].append(indice+1)
+        
+        arquivo = open('dicionario_base.txt','r')
+        texto = ''
+        for linhas in arquivo:
+            texto+=linhas
+        arquivo.close()
+        palavra_amb = texto.split('\n')
+        pos = cl.trigram_pos(cl.limpeza(copy.deepcopy(requisitos))[1])
+        amb_lexical = cl.ambiguidade_lexica(copy.deepcopy(requisitos),palavra_amb,pos).requisitos_ambiguos()
+        amb_sintatica = cl.ambiguidade_sintatica(copy.deepcopy(requisitos),cl.trigram_pos(copy.deepcopy(requisitos))).retorna_ambiguidade()
+        PA = amb_lexical['PA']
+        AFL = amb_lexical['AFL']
+        Analitical = list(amb_sintatica['Analitical'].keys())
+        Coordination = list(amb_sintatica['Coordination'].keys())
+        Attachment = list(amb_sintatica['Attachment'].keys())
+        
+
+        for indice in range(len(requisitos)):
+            aux = []
+            aux.append(indice in PA)
+            aux.append(indice in AFL)
+            aux.append(indice in Analitical)
+            aux.append(indice in Coordination)
+            aux.append(indice in Attachment)
+            if True in aux:
+                Data['Ambiguidade'].append((indice + 1, aux))
+            else:
+                Bons['Ambiguidade'].append(indice+1)
+            
+        Data['Bons'].append(list(set(Bons['Ambiguidade'])&set(Bons['Analise_Sintatica'])))
+        
+        contextualizados = cl.Contextualizacao(requisitos,"m3-ontology.txt").analise_contextualizacao()
+        Contex = contextualizados['Contextualizados']
+        Sensores = contextualizados['SensoresIncompletos']
+        Atuadores = contextualizados["AtuadoresIncompletos"]
+
+        for i in range(len(requisitos)):
+            aux = []
+            aux.append(i in Contex)
+            aux.append(i in Sensores)
+            aux.append(i in Atuadores)
+            if True in aux:
+                Data['Contextualizados'].append((i + 1, aux))
+            else:
+                continue
+        headings=''
     return [Data, headings, requisitos]
 
-'''
-arquivo = open('requisitos.txt','r')
-texto = ''
-for linhas in arquivo:
-    texto+=linhas
-arquivo.close()
-requisitos = texto.split('\n')
-
-print(caminho(3,requisitos))
-'''
-        
