@@ -1,10 +1,12 @@
 import nltk
 import re
-
+import sklearn
 #Funções de uso geral
 def limpeza(requisitos):
     tokens = []
-    for indice,req in enumerate(requisitos):
+    import copy
+    interno = copy.deepcopy(requisitos)
+    for indice,req in enumerate(interno):
         req= re.sub("[!'@*>=+#%:&;™.,_\\/()?\"]+", ' ', req)
         req= re.sub('[0-9]+', ' ', req)
         req= re.sub('- | -|-+', ' ', req)
@@ -20,8 +22,8 @@ def limpeza(requisitos):
                 newwords.append(word)
             except:
                 continue
-        requisitos[indice] = ' '.join(newwords)
-    return tokens,requisitos
+        interno[indice] = ' '.join(newwords)
+    return tokens,interno
 
 def trigram_pos(requisitos):
     from pickle import load
@@ -30,7 +32,7 @@ def trigram_pos(requisitos):
     entrada.close()
     
     saida=[tagger.tag(nltk.word_tokenize(requisito)) for requisito in requisitos]
-    
+
     return saida
 
 ###################################################################################
@@ -136,7 +138,7 @@ class ambiguidade_lexica:
         for indice,req in enumerate(self.requisitos):
             self.tokens.append(nltk.word_tokenize(req))
             for ambigua in self.palavras_amb:
-                if ambigua.lower() in self.tokens:
+                if ambigua.lower() in self.tokens[indice]:
                     self.ambiguos_lexicos["PA"].append(indice)
 
     def objetoWN(self,pos):
@@ -155,8 +157,10 @@ class ambiguidade_lexica:
     def algoritmo_flex_amb(self):
         LIMIAR_MIN = 3 / 4
         QTDE_SIM = 3
+        tokens_limpos=[nltk.word_tokenize(req) for req in limpeza(self.requisitos)[1]]
+
         for indice,req in enumerate(self.POS):
-            qtde = len(self.tokens[indice])
+            qtde = len(tokens_limpos[indice])
             possiveis = []
             for token in req:
                 if len(nltk.corpus.wordnet.synsets(token[0], pos=self.objetoWN(token[1][0]))) > QTDE_SIM:
@@ -305,7 +309,7 @@ class Contextualizacao:
         return aux 
 
     def contextualizacao(self):
-        from sklearn.feature_extraction.text import TfidfVectorizer,CountVectorizer
+        from sklearn.feature_extraction.text import TfidfVectorizer
         import pandas as pd
         import numpy as np
         from sklearn.cluster import KMeans
@@ -314,7 +318,6 @@ class Contextualizacao:
         tfidfvectorizer = TfidfVectorizer(analyzer='word', stop_words='english')
 
         tfidf_wm = tfidfvectorizer.fit_transform(requisitos)
-        tfidf_tokens = tfidfvectorizer.get_feature_names_out()
         palavras = list(tfidfvectorizer.get_feature_names_out())
         df_tfidfvect = pd.DataFrame(data=tfidf_wm.toarray(), columns=palavras)
 
@@ -357,12 +360,10 @@ class Contextualizacao:
                 if palavras_1[i] in palavra:
                     if palavras_1[i] not in palavras_check_1:
                         palavras_check_1.append(palavras_1[i])
-        
+
         media_0 = classe_0.mean()[palavras_check_0]
         media_1 = classe_1.mean()[palavras_check_1]
-        
-
-        
+    
         score_0 = media_0.sum()
         score_1 = media_1.sum()
 
@@ -419,8 +420,10 @@ class Contextualizacao:
             else:
                 resultado.append(0)
         
+        print(resultado)
 
         array_or=self.OR(labels,resultado)
+        print(array_or)
         self.contextualizados["Contextualizados"]=[indice for indice,valor in enumerate(array_or) if valor==1]
     
     def completude(self):
@@ -442,7 +445,11 @@ class Contextualizacao:
                         
                 # 2 - Atuadores sem definição
                 if (palavra == "actuator" or palavra == "actuators"):
-                    if not ((pos[indice][i+1][1]=='RB') or (pos[indice][i+1][1][0]=='V')):
+                    try:
+                        if not ((pos[indice][i+1][1]=='RB') or (pos[indice][i+1][1][0]=='V')):
+                            if indice not in self.contextualizados["AtuadoresIncompletos"]:
+                                self.contextualizados["AtuadoresIncompletos"].append(indice)
+                    except:
                         if indice not in self.contextualizados["AtuadoresIncompletos"]:
                             self.contextualizados["AtuadoresIncompletos"].append(indice)
     

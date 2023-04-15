@@ -40,7 +40,7 @@ def caminho(escolha, requisitos):
         PV = analise_sintatica['PV']
         MS = analise_sintatica['MS']
         MVM = analise_sintatica['MVM']
-        DS = analise_sintatica['PV']
+        DS = analise_sintatica['DS']
         
         headings = ("Nº Requisito", "Ausência de Verbos", "Voz Passiva", "Falta de Sujeito", "Dummy Subject")
         Data = []
@@ -63,7 +63,7 @@ def caminho(escolha, requisitos):
         palavra_amb = texto.split('\n')
         pos = cl.trigram_pos(cl.limpeza(requisitos)[1])
         amb_lexical = cl.ambiguidade_lexica(requisitos,palavra_amb,pos).requisitos_ambiguos()
-        amb_sintatica = cl.ambiguidade_sintatica(requisitos,cl.trigram_pos(requisitos)).retorna_ambiguidade()
+        amb_sintatica = cl.ambiguidade_sintatica(requisitos,pos).retorna_ambiguidade()
         PA = amb_lexical['PA']
         AFL = amb_lexical['AFL']
         Analitical = list(amb_sintatica['Analitical'].keys())
@@ -134,9 +134,9 @@ def caminho(escolha, requisitos):
             texto+=linhas
         arquivo.close()
         palavra_amb = texto.split('\n')
-        pos = cl.trigram_pos(cl.limpeza(copy.deepcopy(requisitos))[1])
-        amb_lexical = cl.ambiguidade_lexica(copy.deepcopy(requisitos),palavra_amb,pos).requisitos_ambiguos()
-        amb_sintatica = cl.ambiguidade_sintatica(copy.deepcopy(requisitos),cl.trigram_pos(copy.deepcopy(requisitos))).retorna_ambiguidade()
+        pos = cl.trigram_pos(cl.limpeza(requisitos)[1])
+        amb_lexical = cl.ambiguidade_lexica(requisitos,palavra_amb,pos).requisitos_ambiguos()
+        amb_sintatica = cl.ambiguidade_sintatica(requisitos,pos).retorna_ambiguidade()
         PA = amb_lexical['PA']
         AFL = amb_lexical['AFL']
         Analitical = list(amb_sintatica['Analitical'].keys())
